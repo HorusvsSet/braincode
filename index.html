@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrainCode - Master Brainfuck Programming</title>
+  <meta name="description" content="Solve coding challenges using Brainfuck, the most mind-bending esoteric programming language. LeetCode-style platform with 8 commands.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    .loading-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0f0;
+    }
+    .loading-screen .loader {
+      text-align: center;
+    }
+    .loading-screen .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #6366f1;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* Mobile blocker — permanently disabled, BrainCode supports mobile */
+    #mobile-blocker { display: none !important; }
+    /* Mobile keyboard — only visible on mobile */
+    #mobile-keyboard-container {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: var(--bg-card);
+      border-top: 3px solid var(--accent-primary);
+      padding: 8px 6px 12px;
+      box-shadow: 0 -6px 24px rgba(0,0,0,0.25);
+      backdrop-filter: blur(10px);
+    }
+    .mkb-row {
+      display: flex;
+      justify-content: center;
+      gap: 3px;
+      margin: 2px 0;
+      flex-wrap: wrap;
+    }
+    .mkb-key {
+      min-width: 40px;
+      height: 40px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .mkb-key:active {
+      transform: scale(0.9);
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 8px rgba(99,102,241,0.4);
+    }
+    .mkb-key.mkb-run {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+      min-width: 64px;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .mkb-key.mkb-run:active {
+      background: var(--accent-primary-hover);
+      box-shadow: 0 0 12px rgba(99,102,241,0.6);
+    }
+    .mkb-key.mkb-submit {
+      background: var(--accent-success);
+      color: white;
+      border-color: var(--accent-success);
+    }
+    .mkb-key.mkb-wide {
+      min-width: 52px;
+    }
+    @media (max-width: 768px) {
+      #mobile-keyboard-container {
+        display: block;
+      }
+      #mobile-blocker {
+        display: none !important;
+      }
+      #loading-screen, #navbar, #main-content, .footer {
+        display: block !important;
+      }
+      .mkb-key {
+        min-width: 32px;
+        height: 36px;
+        font-size: 0.8rem;
+        border-radius: 6px;
+      }
+      .mkb-key.mkb-run {
+        min-width: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Mobile blocker — removed, now supports mobile -->
+  <div id="mobile-blocker" style="display:none;"></div>
+
+  <!-- Mobile keyboard (only visible on mobile) -->
+  <div id="mobile-keyboard-container">
+    <div class="mkb-row">
+      <button class="mkb-key" data-bf="&gt;" aria-label="Move right">&gt;</button>
+      <button class="mkb-key" data-bf="&lt;" aria-label="Move left">&lt;</button>
+      <button class="mkb-key" data-bf="+" aria-label="Increment">+</button>
+      <button class="mkb-key" data-bf="-" aria-label="Decrement">-</button>
+      <button class="mkb-key" data-bf="." aria-label="Output">.</button>
+      <button class="mkb-key" data-bf="," aria-label="Input">,</button>
+      <button class="mkb-key" data-bf="[" aria-label="Loop start">[</button>
+      <button class="mkb-key" data-bf="]" aria-label="Loop end">]</button>
+      <button class="mkb-key mkb-wide" data-bf="\n" aria-label="Newline">↵</button>
+      <button class="mkb-key mkb-wide" data-bf="/" aria-label="Slash">/</button>
+      <button class="mkb-key mkb-wide" data-action="bs" aria-label="Backspace" style="font-size:1.2rem">⌫</button>
+    </div>
+    <div class="mkb-row" style="margin-top:6px;gap:4px">
+      <button class="mkb-key mkb-run" data-action="run">▶ Run</button>
+      <button class="mkb-key mkb-run mkb-submit" data-action="submit">✓ Submit</button>
+      <button class="mkb-key mkb-run" data-action="step" style="background:var(--accent-warning);border-color:var(--accent-warning);">⏭ Step</button>
+      <button class="mkb-key mkb-run" data-action="debug" style="background:var(--text-secondary);border-color:var(--text-secondary);">🐛 Debug</button>
+    </div>
+  </div>
+
+  <!-- Loading screen (shown until JS loads) -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loader">
+      <div class="spinner"></div>
+      <p>Loading BrainCode...</p>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav id="navbar" class="navbar" style="display:none;">
+    <div class="nav-inner">
+      <a class="nav-brand" onclick="App.navigate('home')">
+        <span class="logo">🧠</span>
+        BrainCode
+      </a>
+      <div class="nav-links">
+        <button class="nav-link" onclick="App.navigate('tutorial')">📖 Tutorial</button>
+        <button class="nav-link" onclick="App.navigate('challenges')">Challenges</button>
+        <button class="nav-link" onclick="App.navigate('profile')">👤 Profile</button>
+        <div class="nav-sc-group">
+          <button class="nav-link nav-sc-toggle" id="nav-sc-toggle" title="Toggle keyboard shortcuts">⌨ <span class="nav-sc-status">OFF</span></button>
+          <button class="nav-link nav-sc-config" id="nav-sc-config" title="Configure shortcuts">⚙</button>
+        </div>
+        <button class="nav-link theme-toggle" id="theme-toggle" title="Toggle theme">
+          🌙
+        </button>
+      </div>
+      <div id="nav-auth"></div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="main-content"></main>
+
+  <!-- Footer -->
+  <footer class="footer" style="display:none;">
+    <p>BrainCode — Master the art of Brainfuck programming. Built with ❤️</p>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/brainfuck.js"></script>
+  <script src="js/challenges.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', () => {
+      // Hide loading screen
+      document.getElementById('loading-screen').style.display = 'none';
+      
+      // Show navbar and footer
+      document.getElementById('navbar').style.display = '';
+      document.querySelector('.footer').style.display = '';
+
+      // Initialize app
+      App.init();
+
+      // Theme toggle
+      const themeToggle = document.getElementById('theme-toggle');
+      const savedTheme = localStorage.getItem('braincode-theme');
+      
+      if (savedTheme === 'light') {
+        document.body.classList.remove('dark-theme');
+        themeToggle.textContent = '☀️';
+      } else {
+        document.body.classList.add('dark-theme');
+        themeToggle.textContent = '🌙';
+      }
+
+      themeToggle.addEventListener('click', () => {
+        if (document.body.classList.contains('dark-theme')) {
+          document.body.classList.remove('dark-theme');
+          themeToggle.textContent = '☀️';
+          localStorage.setItem('braincode-theme', 'light');
+        } else {
+          document.body.classList.add('dark-theme');
+          themeToggle.textContent = '🌙';
+          localStorage.setItem('braincode-theme', 'dark');
+        }
+      });
+
+      // Highlight active nav link
+      window.addEventListener('hashchange', () => {
+        const page = window.location.hash.slice(1).split('/')[0] || 'home';
+        document.querySelectorAll('.nav-link').forEach(link => {
+          link.classList.remove('active');
+        });
+        const activeLink = document.querySelector(`.nav-link[onclick*="${page}"]`);
+        if (activeLink) activeLink.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
